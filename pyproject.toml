@@ -1,0 +1,32 @@
+ [project]
+ name = "cart-service"
+ version = "0.1.0"
+ requires-python = ">=3.11"
+ dependencies = [
+     "fastapi",
+     "uvicorn[standard]",
+     "pydantic>=2.0",
+     "pydantic-settings>=2.0",
+     "sqlalchemy>=2.0",
+     "psycopg[binary]",              # PostgreSQL driver
+     "alembic",
+     "redis>=5.0.0",                 # cache & Celery broker backend (選用)
+     "celery>=5.3",
+     "celery-sqlalchemy-scheduler",  # DB-based beat scheduler
+ ]
+
+ [project.optional-dependencies]
+ dev = [
+     "pytest",
+     "pytest-asyncio",
+     "pytest-bdd",
+     "allure-pytest",
+     "pytest-cov",
+     "httpx",
+     "black",
+     "ruff",
+     "isort",
+     "mypy",
+ ]
+
+
