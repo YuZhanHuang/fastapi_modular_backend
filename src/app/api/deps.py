@@ -15,12 +15,11 @@ def get_cart_service(
 ) -> CartService:
     """
     獲取 CartService 實例
-    
-    使用自動化機制，無需手動組裝依賴。
-    未來新增其他 Service 時，只需：
-    
-    def get_order_service(session=Depends(get_session)) -> OrderService:
-        return get_service(OrderService, session)
+    使用自動化機制，無需手動組裝依賴
     """
     return get_service(CartService, session)
+
+
+
+
 
