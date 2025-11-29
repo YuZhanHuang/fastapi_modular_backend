@@ -225,8 +225,7 @@ class UserRepositoryImpl(SqlAlchemyRepositoryBase, UserRepository):
     
     def get_all(self) -> List[User]:
         """獲取所有用戶"""
-        models = self.all()
-        return [self._model_to_domain(model) for model in models]
+        return [self._model_to_domain(model) for model in self.find_all()]
     
     def update(self, user: User) -> User:
         """更新用戶"""
