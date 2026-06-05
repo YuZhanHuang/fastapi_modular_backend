@@ -13,9 +13,9 @@ from typing import Dict, Callable, Optional
 from fastapi import FastAPI
 
 
-class APIAppFactory:
+class AppFactory:
     """
-    API 應用工廠
+    應用工廠
     
     統一管理所有 API 類型的創建邏輯，支援動態註冊和擴展。
     """
@@ -76,7 +76,8 @@ class APIAppFactory:
 
 # 註冊 HTTP API（預設）
 from app.api.http_app import create_http_app
-APIAppFactory.register("http", create_http_app)
+
+AppFactory.register("http", create_http_app)
 
 # 未來註冊其他 API 時，只需在這裡添加：
 # from app.api.graphql_app import create_graphql_app

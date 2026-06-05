@@ -1,6 +1,8 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.api.deps import get_cart_service
+from app.api.deps import inject_service
 from app.api.schemas.cart import CartOut, AddItemIn
 from app.api.schemas.response import ApiResponse
 from app.api.utils.converters.cart import cart_out_from_domain
@@ -8,6 +10,8 @@ from app.api.utils.response import success_response, created_response, not_found
 from app.core.services.cart_service import CartService
 
 router = APIRouter(tags=["cart"])
+
+CartServiceDep = Annotated[CartService, Depends(inject_service(CartService))]
 
 
 @router.get(
@@ -18,7 +22,7 @@ router = APIRouter(tags=["cart"])
 )
 def get_cart(
     user_id: str,
-    service: CartService = Depends(get_cart_service),
+    service: CartServiceDep,
 ) -> ApiResponse[CartOut]:
     """
     獲取購物車
@@ -61,7 +65,7 @@ def get_cart(
 def add_item(
     user_id: str,
     body: AddItemIn,
-    service: CartService = Depends(get_cart_service),
+    service: CartServiceDep,
 ) -> ApiResponse[CartOut]:
     """
     加入購物車項目

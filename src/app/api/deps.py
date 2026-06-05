@@ -1,25 +1,32 @@
 """
-FastAPI 依賴注入函數
+FastAPI 依賴注入
 
-使用新的自動化機制創建 Service 實例。
+透過 inject_service 泛型工廠，自動從 wiring 組裝 Service 實例。
 """
+from typing import Callable, Type, TypeVar
+
 from fastapi import Depends
+from sqlalchemy.orm import Session
 
 from app.infra.db.session import get_session
 from app.infra.wiring import get_service
-from app.core.services.cart_service import CartService
+
+T = TypeVar("T")
 
 
-def get_cart_service(
-    session=Depends(get_session),
-) -> CartService:
+def inject_service(service_type: Type[T]) -> Callable[..., T]:
     """
-    獲取 CartService 實例
-    使用自動化機制，無需手動組裝依賴
+    建立 FastAPI 依賴：依請求注入指定 Service 實例。
+
+    用法（於路由模組）::
+
+        CartServiceDep = Annotated[CartService, Depends(inject_service(CartService))]
+
+        def get_cart(service: CartServiceDep) -> ...:
+            ...
     """
-    return get_service(CartService, session)
 
+    def _dependency(session: Session = Depends(get_session)) -> T:
+        return get_service(service_type, session)
 
-
-
-
+    return _dependency

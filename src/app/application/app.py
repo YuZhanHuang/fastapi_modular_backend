@@ -11,7 +11,7 @@ from typing import Optional
 
 from fastapi import FastAPI
 
-from app.api.factory import APIAppFactory
+from app.api.factory import AppFactory
 from app.config import settings
 from app.infra.db.base import Base
 from app.infra.db.session import engine
@@ -52,7 +52,7 @@ def create_app(
         init_database(create_tables=create_tables)
     
     # 使用工廠創建 API 應用
-    app = APIAppFactory.create(api_type)
+    app = AppFactory.create(api_type)
     
     return app
 
