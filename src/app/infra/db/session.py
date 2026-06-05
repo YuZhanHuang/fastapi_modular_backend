@@ -1,29 +1,22 @@
 from typing import Generator
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, sessionmaker
 
-from app.config import settings
+from app.infra.containers import get_container
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    future=True,
-    echo=False,
-)
 
-SessionLocal = sessionmaker(
-    bind=engine,
-    class_=Session,
-    autocommit=False,
-    autoflush=False,
-    expire_on_commit=False,
-)
+def get_engine() -> Engine:
+    return get_container().infra.db_engine()
+
+
+def get_session_factory() -> sessionmaker[Session]:
+    return get_container().infra.session_factory()
 
 
 def get_session() -> Generator[Session, None, None]:
-    db = SessionLocal()
+    db = get_session_factory()()
     try:
         yield db
     finally:
         db.close()
-

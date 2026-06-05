@@ -1,169 +1,108 @@
-# Wiring 模組 - 自動化依賴注入
+# IoC Container 模組（dependency-injector）
+
+> **注意：** 本專案已以 `infra/containers/` 取代舊的 `infra/wiring/` 自動發現機制。本文描述現行架構。
 
 ## 概述
 
-本模組實現了**自動發現 + 註冊表模式 + 泛型工廠**的依賴注入機制，解決重複代碼問題。
+使用 [dependency-injector](https://python-dependency-injector.ets-labs.org/) 的 **DeclarativeContainer** 集中管理依賴圖，取代反射式自動發現。新增實體時在 Container 中明確註冊 Provider，換取可視化的依賴關係與穩定的測試覆寫。
 
-## 核心功能
+## 目錄結構
 
-### 1. 自動發現機制 (`auto_discovery.py`)
+```
+infra/containers/
+├── __init__.py          # get_container()、init/shutdown hooks
+├── application.py       # ApplicationContainer（根容器）
+├── infrastructure.py    # 引擎、Redis、session Resource
+├── repositories.py      # Repository Factory
+└── services.py          # Service Factory
+```
 
-基於命名約定自動掃描和發現所有組件：
+## 容器分層
 
-- **Repository 接口**：掃描 `core/repositories/` 目錄
-- **Repository 實作**：掃描 `infra/db/repositories/` 目錄
-- **Service 類別**：掃描 `core/services/` 目錄
-
-**命名約定：**
-- `{Entity}Repository` → `{Entity}RepositoryImpl`
-- `{Entity}Service` → 自動解析依賴
-
-### 2. 註冊表 (`registry.py`)
-
-統一管理所有依賴映射關係：
-
-- 自動建立 `Repository` → `RepositoryImpl` 映射
-- 提供查詢接口
-- 支持手動註冊（特殊情況）
-
-### 3. 依賴解析器 (`dependency_resolver.py`)
-
-自動解析 Service 的依賴：
-
-- 分析 `__init__` 方法簽名
-- 識別需要的 Repository/Port 類型
-- 自動注入對應的實例
-
-### 4. 泛型工廠 (`factories.py`)
-
-統一的創建函數：
-
-- `get_repository()` - 創建 Repository 實例
-- `get_service()` - 創建 Service 實例，自動解析依賴
+| 容器 | Provider 類型 | 管理對象 |
+|---|---|---|
+| `InfrastructureContainer` | Singleton / Resource | `db_engine`、`session_factory`、`redis`、`db_session` |
+| `RepositoryContainer` | Factory | `CartRepositoryImpl`（綁定 request-scoped `Session`） |
+| `ServiceContainer` | Factory | `CartService` |
+| `ApplicationContainer` | Container 巢狀組裝 | 以上三層 |
 
 ## 使用方式
 
-### 基本使用
-
-```python
-from app.infra.wiring import get_service, get_repository
-from app.core.services.cart_service import CartService
-from app.core.repositories.cart_repository import CartRepository
-from sqlalchemy.orm import Session
-
-# 創建 Repository
-repo = get_repository(CartRepository, session)
-
-# 創建 Service（自動解析依賴）
-service = get_service(CartService, session)
-```
-
-### 在 FastAPI 中使用
+### HTTP（FastAPI）
 
 ```python
 # api/deps.py
-from fastapi import Depends
-from app.infra.db.session import get_session
-from app.infra.wiring import get_service
-from app.core.services.cart_service import CartService
+def inject_service(provider: providers.Factory[T]) -> Callable[..., T]:
+    def _dependency(session: Session = Depends(get_session)) -> T:
+        return provider(session=session)
+    return _dependency
 
-def get_cart_service(
-    session=Depends(get_session),
-) -> CartService:
-    return get_service(CartService, session)
+# api/carts.py
+from app.infra.containers import get_container
+
+CartServiceDep = Annotated[
+    CartService,
+    Depends(inject_service(get_container().services.cart_service)),
+]
 ```
 
-### 新增實體時
+`get_session` 是唯一保留 `Depends` 的 HTTP 專用依賴，負責請求級 DB session 生命週期。
 
-**只需要：**
-
-1. 創建 `core/repositories/order_repository.py`
-2. 創建 `infra/db/repositories/order_repository_impl.py`
-3. 創建 `core/services/order_service.py`
-
-**無需修改 `wiring.py`！** 自動發現機制會自動處理。
-
-## 範例：新增 Order 實體
-
-### 之前（需要手寫）
+### Celery / CLI / 測試腳本
 
 ```python
-# infra/wiring.py
-def create_order_repository(session: Session) -> OrderRepository:
-    return OrderRepositoryImpl(session)
+from app.infra.containers import get_container
 
-def create_order_service(session: Session) -> OrderService:
-    repo = create_order_repository(session)
-    return OrderService(order_repo=repo)
+container = get_container()
+
+# 方式 1：自行管理 session
+session = container.infra.session_factory()()
+try:
+    service = container.services.cart_service(session=session)
+    service.add_item(...)
+    session.commit()
+finally:
+    session.close()
+
+# 方式 2：Resource（推薦給腳本）
+with container.infra.db_session() as session:
+    service = container.services.cart_service(session=session)
 ```
 
-### 之後（自動化）
+### 測試覆寫
 
 ```python
-# api/deps.py
-def get_order_service(session=Depends(get_session)) -> OrderService:
-    return get_service(OrderService, session)  # 自動處理所有依賴
+with container.services.cart_service.override(providers.Object(stub_service)):
+    response = client.get("/api/cart?user_id=1")
 ```
 
-## 複雜依賴範例
+## 新增實體標準流程（以 User 為例）
 
-如果 Service 依賴多個 Repository：
-
-```python
-class OrderService:
-    def __init__(
-        self,
-        order_repo: OrderRepository,
-        product_repo: ProductRepository,
-        payment_port: PaymentPort
-    ):
-        # ...
-```
-
-**無需手動組裝**，依賴解析器會自動：
-1. 識別所有依賴類型
-2. 自動創建對應實例
-3. 注入到 Service
+1. `core/repositories/user_repository.py` — 介面
+2. `infra/db/repositories/user_repository_impl.py` — 實作
+3. `core/services/user_service.py` — 用例
+4. `infra/containers/repositories.py` — 加 `user_repository = providers.Factory(...)`
+5. `infra/containers/services.py` — 加 `user_service = providers.Factory(...)`
+6. `api/users.py` — `UserServiceDep = Annotated[..., Depends(inject_service(get_container().services.user_service))]`
 
 ## 架構優勢
 
-1. ✅ **消除重複代碼** - 無需為每個實體寫工廠函數
-2. ✅ **自動發現** - 基於命名約定自動掃描
-3. ✅ **自動解析** - 自動識別和注入依賴
-4. ✅ **向後兼容** - 保留舊的工廠函數
-5. ✅ **易於擴展** - 新增實體無需修改 wiring.py
+1. **集中可見** — 所有依賴關係在 Container 檔案中一目了然
+2. **Scope 明確** — Singleton（基礎設施）vs Factory（業務物件）
+3. **脫離 HTTP** — 非 HTTP 入口直接 `container.services.xxx(session=...)`
+4. **穩定測試** — `container.override()` 不依賴函式位址
+5. **簽名乾淨** — 不使用 `Provide[]` + wiring，路由維持 `CartServiceDep` 模式
 
-## 技術細節
+## 啟動與生命週期
 
-### 自動發現流程
+```python
+# application/app.py
+container = init_container()
+app.state.container = container
 
-1. 啟動時掃描 `core/repositories/` 目錄
-2. 掃描 `infra/db/repositories/` 目錄
-3. 基於命名約定建立映射：`CartRepository` → `CartRepositoryImpl`
-4. 註冊到全局註冊表
+@app.on_event("shutdown")
+def _shutdown_container():
+    shutdown_container()
+```
 
-### 依賴解析流程
-
-1. 分析 Service 的 `__init__` 簽名
-2. 提取參數類型和名稱
-3. 對於每個依賴類型：
-   - 如果是 `Session` → 直接使用
-   - 如果是 `Repository` → 從註冊表獲取實作並創建
-   - 如果是 `Port` → 未來擴展
-4. 創建 Service 實例並注入所有依賴
-
-## 注意事項
-
-1. **命名約定必須嚴格遵守**：
-   - Repository 接口：`{Entity}Repository`
-   - Repository 實作：`{Entity}RepositoryImpl`
-   - Service：`{Entity}Service`
-
-2. **類型提示很重要**：
-   - Service 的 `__init__` 必須有完整的類型提示
-   - 依賴解析器依賴類型提示來識別依賴
-
-3. **Session 注入**：
-   - `Session` 類型會自動從參數中獲取
-   - RepositoryImpl 的 `__init__` 必須接受 `session: Session` 參數
-
+`session.py` 與 `redis_client.py` 透過 `get_container().infra` 取得 Singleton 資源。

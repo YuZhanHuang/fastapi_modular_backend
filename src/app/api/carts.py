@@ -8,10 +8,15 @@ from app.api.schemas.response import ApiResponse
 from app.api.utils.converters.cart import cart_out_from_domain
 from app.api.utils.response import success_response, created_response, not_found_response
 from app.core.services.cart_service import CartService
+from app.infra.containers import get_container
 
 router = APIRouter(tags=["cart"])
+container = get_container()
 
-CartServiceDep = Annotated[CartService, Depends(inject_service(CartService))]
+CartServiceDep = Annotated[
+    CartService,
+    Depends(inject_service(container.services.cart_service)),
+]
 
 
 @router.get(
@@ -45,7 +50,7 @@ def get_cart(
             detail=not_found_response(
                 resource_type="購物車",
                 resource_id=user_id
-            ).model_dump()
+            ).model_dump(mode="json")
         )
     
     cart_data = cart_out_from_domain(cart)
@@ -100,4 +105,3 @@ def add_item(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
-

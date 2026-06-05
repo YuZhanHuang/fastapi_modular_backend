@@ -463,23 +463,21 @@ def user_out_from_domain(user: User) -> UserOut:
 **檔案：`api/deps.py`**（追加）
 
 ```python
-# 在現有檔案中追加
+# infra/containers/repositories.py — 加 user_repository Factory
+# infra/containers/services.py — 加 user_service Factory
 
-def get_user_service(
-    session=Depends(get_session),
-) -> UserService:
-    """
-    獲取 UserService 實例
-    
-    使用自動化機制，無需手動組裝依賴。
-    """
-    from app.core.services.user_service import UserService
-    return get_service(UserService, session)
+# api/users.py
+from app.infra.containers import get_container
+
+UserServiceDep = Annotated[
+    UserService,
+    Depends(inject_service(get_container().services.user_service)),
+]
 ```
 
 **說明：**
-- 使用現有的自動化依賴注入機制
-- 遵循與 `get_cart_service` 相同的模式
+- 在 Container 明確註冊 Provider
+- 遵循與 `CartServiceDep` 相同的模式
 
 ---
 

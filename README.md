@@ -115,11 +115,11 @@ src/app/
 │   ├── cache/                   # 緩存（Redis）
 │   │   └── redis_client.py
 │   │
-│   └── wiring/                  # 自動化依賴注入
-│       ├── auto_discovery.py   # 自動發現機制
-│       ├── registry.py         # 依賴注冊表
-│       ├── dependency_resolver.py  # 依賴解析器
-│       └── factories.py        # 泛型工廠
+│   └── containers/              # dependency-injector IoC
+│       ├── application.py      # ApplicationContainer（根容器）
+│       ├── infrastructure.py   # Singleton：engine、redis
+│       ├── repositories.py     # Repository Factory
+│       └── services.py         # Service Factory
 │
 ├── application/                 # 應用初始化
 │   └── app.py                  # 應用創建入口
@@ -147,38 +147,25 @@ HTTP Request
 HTTP Response
 ```
 
-### 自動化依賴注入機制
+### 依賴注入（dependency-injector）
 
-基於**命名約定**的自動發現與注入：
+使用 **DeclarativeContainer** 集中管理依賴圖：
 
 ```python
-# 1. 定義 Repository 接口（core/repositories/cart_repository.py）
-class CartRepository(ABC):
-    @abstractmethod
-    def get_by_user_id(self, user_id: str) -> Optional[Cart]:
-        pass
+# infra/containers/repositories.py
+cart_repository = providers.Factory(CartRepositoryImpl, session=providers.Dependency(...))
 
-# 2. 實現 Repository（infra/db/repositories/cart_repository_impl.py）
-class CartRepositoryImpl(SqlAlchemyRepositoryBase, CartRepository):
-    def get_by_user_id(self, user_id: str) -> Optional[Cart]:
-        # 實現邏輯
-        pass
+# infra/containers/services.py
+cart_service = providers.Factory(_create_cart_service, ...)
 
-# 3. 定義 Service（core/services/cart_service.py）
-class CartService:
-    def __init__(self, cart_repo: CartRepository):
-        self.cart_repo = cart_repo
-
-# 4. 在 API 層使用（api/deps.py）
-def get_cart_service(session=Depends(get_session)) -> CartService:
-    return get_service(CartService, session)  # 自動解析並注入依賴！
+# api/carts.py
+CartServiceDep = Annotated[
+    CartService,
+    Depends(inject_service(get_container().services.cart_service)),
+]
 ```
 
-**無需手動配置！** Wiring 模組會自動：
-1. 掃描 `core/repositories/` 找到所有 Repository 接口
-2. 掃描 `infra/db/repositories/` 找到所有實現類
-3. 基於命名約定建立映射（`CartRepository` → `CartRepositoryImpl`）
-4. 自動解析 Service 的依賴並注入
+新增實體時在 Container 註冊 Provider，並在路由使用 `inject_service` 橋接。
 
 ---
 
@@ -189,10 +176,10 @@ def get_cart_service(session=Depends(get_session)) -> CartService:
 - 每層職責明確
 - 易於理解和維護
 
-### 2. 自動化依賴注入
-- 基於命名約定的自動發現
-- 無需手動配置
-- 新增實體時零配置
+### 2. 集中式依賴注入
+- dependency-injector DeclarativeContainer
+- 依賴圖可視化、Scope 明確
+- 測試可用 `container.override()`
 
 ### 3. 多 API 類型支援
 - HTTP REST API（預設）
@@ -410,12 +397,17 @@ def create_user(
 #### 8. 註冊依賴注入
 
 ```python
-# api/deps.py
-def get_user_service(session=Depends(get_session)) -> UserService:
-    return get_service(UserService, session)  # 自動注入！
+# infra/containers/repositories.py — 加 user_repository Factory
+# infra/containers/services.py — 加 user_service Factory
+
+# api/users.py
+UserServiceDep = Annotated[
+    UserService,
+    Depends(inject_service(get_container().services.user_service)),
+]
 ```
 
-**完成！** 無需修改任何配置，Wiring 模組會自動處理所有依賴。
+**完成！** 在 Container 明確註冊後即可使用。
 
 ### 資料庫遷移
 

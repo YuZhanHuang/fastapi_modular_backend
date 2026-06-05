@@ -178,7 +178,7 @@ infra/
 │   └── session.py       # 資料庫連接
 ├── cache/
 │   └── redis_client.py  # Redis 實現
-└── wiring/              # 依賴注入機制
+└── containers/          # dependency-injector IoC
 ```
 
 **範例：**
@@ -658,11 +658,12 @@ def add_item_graphql(...):
 
 ### Q2: 依賴注入太複雜了？
 
-**A:** 本專案使用**自動化依賴注入**（Wiring 模組），基於命名約定自動發現和注入：
+**A:** 本專案使用 **dependency-injector DeclarativeContainer** 集中管理依賴，HTTP 層透過 `inject_service` 橋接：
 ```python
-# 只需要這樣寫
-def get_cart_service(session=Depends(get_session)) -> CartService:
-    return get_service(CartService, session)  # 自動解析所有依賴！
+CartServiceDep = Annotated[
+    CartService,
+    Depends(inject_service(get_container().services.cart_service)),
+]
 ```
 
 ### Q3: 每次都要寫 Converter 很麻煩？
