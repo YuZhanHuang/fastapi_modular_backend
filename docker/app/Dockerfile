@@ -40,4 +40,7 @@ EXPOSE 8000
 
 ENTRYPOINT ["/entrypoint.sh"]
 
+FROM base AS dev
+COPY tests ./tests
+RUN uv sync --frozen --extra dev
 

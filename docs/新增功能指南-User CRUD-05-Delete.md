@@ -134,6 +134,8 @@ def delete_user(
 
 ## 測試
 
+手動驗證 API 使用 curl；自動化測試請用 `./scripts/test.sh`（見 [測試流程說明](測試流程說明.md)）。
+
 ### 使用 curl 測試
 
 ```bash
@@ -306,7 +308,7 @@ def delete_user(self, user_id: int) -> None:
 - [ ] 路徑參數驗證已添加
 - [ ] 404 錯誤處理已實作
 - [ ] 返回 204 No Content
-- [ ] 測試通過
+- [ ] 測試通過（`./scripts/test.sh`）
 - [ ] （可選）軟刪除已實作
 - [ ] （可選）級聯刪除已實作
 

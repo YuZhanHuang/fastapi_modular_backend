@@ -592,6 +592,8 @@ class CartService:
 
 ## 測試範例
 
+執行方式：將下列測試寫入 `tests/` 後，以 `./scripts/test.sh` 執行（見 [測試流程說明](測試流程說明.md)）。
+
 ### 單元測試
 
 ```python

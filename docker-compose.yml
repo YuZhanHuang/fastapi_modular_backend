@@ -11,16 +11,27 @@ services:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     ports:
       - "8823:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   app:
     build:
       context: .
       dockerfile: docker/app/Dockerfile
+      target: base
     environment:
       SERVICE_ROLE: api
       DB_HOST: db
@@ -43,6 +54,7 @@ services:
     build:
       context: .
       dockerfile: docker/app/Dockerfile
+      target: base
     environment:
       SERVICE_ROLE: worker
       RUN_MIGRATIONS: "0"
@@ -62,6 +74,7 @@ services:
     build:
       context: .
       dockerfile: docker/app/Dockerfile
+      target: base
     environment:
       SERVICE_ROLE: beat
       RUN_MIGRATIONS: "0"
@@ -81,6 +94,7 @@ services:
     build:
       context: .
       dockerfile: docker/app/Dockerfile
+      target: base
     environment:
       SERVICE_ROLE: flower
       RUN_MIGRATIONS: "0"

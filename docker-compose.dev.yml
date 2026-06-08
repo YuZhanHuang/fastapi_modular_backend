@@ -1,0 +1,23 @@
+version: "3.9"
+
+x-dev-service: &dev-service
+  build:
+    target: dev
+  volumes:
+    - ./src:/app/src
+    - ./tests:/app/tests
+    - ./pyproject.toml:/app/pyproject.toml:ro
+    - ./uv.lock:/app/uv.lock:ro
+
+services:
+  app:
+    <<: *dev-service
+
+  worker:
+    <<: *dev-service
+
+  beat:
+    <<: *dev-service
+
+  flower:
+    <<: *dev-service

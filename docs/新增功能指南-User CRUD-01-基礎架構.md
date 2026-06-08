@@ -553,6 +553,7 @@ alembic upgrade head
 - [ ] Router 模組已建立於 `api/routers/` 且匯出 `router`
 - [ ] 業務錯誤已定義於 `core/exceptions/`，HTTP 映射已添加至 `api/exceptions/`（見 [錯誤處理架構說明](錯誤處理架構說明.md)）
 - [ ] 資料庫遷移已建立並執行
+- [ ] 自動化測試已新增並通過：`./scripts/test.sh`（見 [測試流程說明](測試流程說明.md)）
 
 ---
 

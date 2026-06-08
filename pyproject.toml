@@ -36,4 +36,7 @@ testpaths = ["tests"]
 pythonpath = ["src", "."]
 python_files = ["test_*.py", "*_steps.py"]
 bdd_features_base_dir = "tests/features/"
+markers = [
+    "integration: tests requiring Postgres/Redis (deselect with '-m \"not integration\"')",
+]
 

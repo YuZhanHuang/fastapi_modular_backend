@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-docker compose down -v
+docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v
 
 

@@ -10,6 +10,7 @@
 - [架構概況](#架構概況)
 - [核心特性](#核心特性)
 - [快速開始](#快速開始)
+- [測試](#測試)
 - [專案結構](#專案結構)
 - [開發指南](#開發指南)
 - [文檔](#文檔)
@@ -233,15 +234,17 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 #### 方式二：使用 Docker Compose
 
+開發環境需合併 dev overlay（`dev` image + src/tests volume）：
+
 ```bash
-# 啟動服務
-docker-compose up -d
+# 啟動服務（等同 dev-up.sh）
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 
 # 查看日誌
-docker-compose logs -f app
+docker compose -f docker-compose.yml -f docker-compose.dev.yml logs -f app
 
 # 停止服務
-docker-compose down
+docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v
 ```
 
 ### 驗證服務
@@ -270,6 +273,40 @@ curl -X POST http://localhost:8000/api/cart/items \
 
 ---
 
+## 測試
+
+測試統一走 Docker，**不以本機 `uv run pytest` 為標準流程**。詳見 [docs/測試流程說明.md](docs/測試流程說明.md)。
+
+### 標準測試（輕量，預設）
+
+適用 unit、BDD、SQLite 等現有測試，不需啟動 db/redis：
+
+```bash
+# 跑全部測試
+./scripts/test.sh
+
+# 指定檔案或 pytest 參數
+./scripts/test.sh tests/test_base_repository_pagination.py -v
+```
+
+### Integration 測試（需 Postgres / Redis）
+
+啟動完整 stack 後執行；未來可標記 `@pytest.mark.integration` 並改為 `pytest -m integration`：
+
+```bash
+./scripts/test-integration.sh
+```
+
+### 開發容器內直接跑
+
+`dev-up.sh` 啟動後，tests 目錄已掛載至 app 容器：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml exec app uv run pytest -v
+```
+
+---
+
 ## 📁 專案結構
 
 ```
@@ -284,6 +321,7 @@ fastapi_modular_backend/
 │   └── config.py          # 配置
 │
 ├── docs/                   # 架構文檔
+│   ├── 測試流程說明.md
 │   ├── 架構說明.md
 │   ├── API 層架構設計.md
 │   ├── Domain 層組織規範.md
@@ -298,10 +336,15 @@ fastapi_modular_backend/
 │
 ├── scripts/                # 開發腳本
 │   ├── dev-up.sh          # 啟動開發環境
-│   └── dev-down.sh        # 關閉開發環境
+│   ├── dev-down.sh        # 關閉開發環境
+│   ├── test.sh            # 標準測試（輕量）
+│   ├── test-integration.sh # Integration 測試
+│   └── run-tests.sh       # 容器內 pytest 入口
 │
 ├── alembic.ini            # 資料庫遷移配置
-├── docker-compose.yml     # Docker Compose 配置
+├── docker-compose.yml     # Docker Compose 基礎配置
+├── docker-compose.dev.yml # 開發環境覆寫
+├── docker-compose.test.yml # 測試專用配置
 ├── pyproject.toml         # Python 專案配置
 └── README.md              # 本文件
 ```
@@ -462,6 +505,7 @@ RUN_MIGRATIONS=0         # 是否自動運行遷移
 - [多 API 創建問題分析與解決方案.md](docs/多%20API%20創建問題分析與解決方案.md) - API 工廠模式
 
 ### 開發指南
+- [測試流程說明.md](docs/測試流程說明.md) - Docker 測試標準流程（Agent 指引）
 - [新增功能指南-User CRUD-01-基礎架構.md](docs/新增功能指南-User%20CRUD-01-基礎架構.md)
 - [新增功能指南-User CRUD-02-Create.md](docs/新增功能指南-User%20CRUD-02-Create.md)
 - [新增功能指南-User CRUD-03-Retrieve.md](docs/新增功能指南-User%20CRUD-03-Retrieve.md)

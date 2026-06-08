@@ -76,6 +76,8 @@ with container.services.cart_service.override(providers.Object(stub_service)):
     response = client.get("/api/cart?user_id=1")
 ```
 
+執行測試請使用標準 Docker 流程：`./scripts/test.sh`（詳見 [測試流程說明](測試流程說明.md)）。
+
 ## 新增實體標準流程（以 User 為例）
 
 1. `core/repositories/user_repository.py` — 介面

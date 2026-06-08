@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+docker compose -f docker-compose.test.yml build test
+docker compose -f docker-compose.test.yml run --rm test "$@"
