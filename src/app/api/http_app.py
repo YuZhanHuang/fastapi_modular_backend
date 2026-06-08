@@ -18,7 +18,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 
-from app.api import carts
+from app.api.router_discovery import register_routers
 from app.api.schemas.response import ErrorDetail
 from app.api.utils.response import (
     error_response,
@@ -48,7 +48,7 @@ def create_http_app() -> FastAPI:
     register_exception_handlers(app)
 
     # 註冊路由
-    app.include_router(carts.router, prefix="/api")
+    register_routers(app)
 
     return app
 

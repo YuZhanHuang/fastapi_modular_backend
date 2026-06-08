@@ -117,7 +117,7 @@ def user_out_from_domain(user: User) -> UserOut:
 
 ### 步驟 4：實作 API 路由
 
-**檔案：`api/users.py`**
+**檔案：`api/routers/users.py`**
 
 ```python
 """
@@ -125,14 +125,23 @@ User API 路由
 
 處理 User 相關的 HTTP 請求。
 """
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.api.deps import get_user_service
+from app.api.deps import inject_service
 from app.api.schemas.user import UserOut, UserCreateIn
 from app.api.utils.converters.user import user_out_from_domain
 from app.core.services.user_service import UserService
+from app.infra.containers import get_container
 
-router = APIRouter(tags=["users"])
+router = APIRouter(tags=["user"])
+container = get_container()
+
+UserServiceDep = Annotated[
+    UserService,
+    Depends(inject_service(container.services.user_service)),
+]
 
 
 @router.post(
@@ -144,7 +153,7 @@ router = APIRouter(tags=["users"])
 )
 def create_user(
     body: UserCreateIn,
-    service: UserService = Depends(get_user_service),
+    service: UserServiceDep,
 ) -> UserOut:
     """
     創建用戶
@@ -178,34 +187,12 @@ def create_user(
 ```
 
 **說明：**
+- Router 模組放在 `api/routers/`，匯出 `router = APIRouter(...)` 後啟動時自動註冊
 - 使用 `@router.post` 定義 POST 端點
 - `status_code=201` 表示創建成功
-- 使用 `Depends(get_user_service)` 注入 Service
+- 使用 `UserServiceDep` 注入 Service（與 `CartServiceDep` 相同模式）
 - 處理 `ValueError` 並轉換為適當的 HTTP 狀態碼
 - 使用 Converter 轉換 Domain Model → API Schema
-
----
-
-### 步驟 5：註冊路由
-
-**檔案：`api/http_app.py`**
-
-確認路由已註冊：
-
-```python
-from app.api import carts, users
-
-def create_http_app() -> FastAPI:
-    app = FastAPI(
-        title="Cart Service",
-        version="1.0.0",
-    )
-
-    app.include_router(carts.router, prefix="/api")
-    app.include_router(users.router, prefix="/api")  # 新增
-
-    return app
-```
 
 ---
 
@@ -220,13 +207,13 @@ def create_http_app() -> FastAPI:
    }
    
 2. FastAPI 路由處理
-   api/users.py::create_user()
+   api/routers/users.py::create_user()
    
 3. Pydantic 驗證
    UserCreateIn(email="user@example.com", name="John Doe")
    
 4. 依賴注入
-   get_user_service() → UserService 實例
+   UserServiceDep → UserService 實例
    
 5. Service 層處理
    UserService.create_user()
@@ -346,8 +333,7 @@ print(response.json())
 - [ ] Service 方法已實作
 - [ ] Schema 已定義
 - [ ] Converter 已實作
-- [ ] API 路由已實作
-- [ ] 路由已註冊
+- [ ] API 路由已實作（`api/routers/users.py` 且匯出 `router`）
 - [ ] 錯誤處理已實作
 - [ ] 測試通過
 

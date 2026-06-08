@@ -27,11 +27,11 @@
 6. Converter 層（api/utils/converters/user.py）
    └── Domain Model → API Schema 轉換器
 
-7. API 路由層（api/users.py）
+7. API 路由層（api/routers/users.py）
    └── RESTful API 端點
 
-8. 依賴注入（api/deps.py）
-   └── get_user_service 函數
+8. 依賴注入（api/routers/users.py 的 UserServiceDep）
+   └── inject_service + Container Factory
 ```
 
 ---
@@ -466,7 +466,7 @@ def user_out_from_domain(user: User) -> UserOut:
 # infra/containers/repositories.py — 加 user_repository Factory
 # infra/containers/services.py — 加 user_service Factory
 
-# api/users.py
+# api/routers/users.py
 from app.infra.containers import get_container
 
 UserServiceDep = Annotated[
@@ -481,19 +481,24 @@ UserServiceDep = Annotated[
 
 ---
 
-## 步驟 9：註冊路由
+## 步驟 9：建立 Router 模組（自動註冊）
 
-**檔案：`api/http_app.py`**（更新）
+**檔案：`api/routers/users.py`**
+
+在 `api/routers/` 目錄建立 router 模組，並匯出 `router = APIRouter(...)`。啟動時 `router_discovery` 會自動掃描並註冊，**無需修改 `api/http_app.py`**。
 
 ```python
-from app.api import carts, users  # 新增 users
+from fastapi import APIRouter
 
-def create_http_app() -> FastAPI:
-    # ...
-    app.include_router(carts.router, prefix="/api")
-    app.include_router(users.router, prefix="/api")  # 新增
-    return app
+router = APIRouter(tags=["user"])
+
+# 端點實作見 CRUD 指南（Create / Retrieve / Update / Delete）
 ```
+
+**說明：**
+- Router 模組放在 `api/routers/`，以 `_` 開頭的模組不會被掃描
+- 統一使用 `/api` prefix（由 `register_routers()` 集中套用）
+- 重啟服務後端點即出現在 OpenAPI（`/docs`）
 
 ---
 
@@ -523,7 +528,7 @@ alembic upgrade head
 - [ ] API Schema 已建立（`api/schemas/user.py`）
 - [ ] Converter 已建立（`api/utils/converters/user.py`）
 - [ ] 依賴注入已添加（`api/deps.py`）
-- [ ] 路由已註冊（`api/http_app.py`）
+- [ ] Router 模組已建立於 `api/routers/` 且匯出 `router`
 - [ ] 資料庫遷移已建立並執行
 
 ---

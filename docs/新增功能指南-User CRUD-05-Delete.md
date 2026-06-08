@@ -49,17 +49,26 @@ def delete_user(self, user_id: int) -> None:
 
 ### 步驟 2：實作 API 路由
 
-**檔案：`api/users.py`**
+**檔案：`api/routers/users.py`**
 
 在現有檔案中追加以下路由：
 
 ```python
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status, Path
 
-from app.api.deps import get_user_service
+from app.api.deps import inject_service
 from app.core.services.user_service import UserService
+from app.infra.containers import get_container
 
-router = APIRouter(tags=["users"])
+router = APIRouter(tags=["user"])
+container = get_container()
+
+UserServiceDep = Annotated[
+    UserService,
+    Depends(inject_service(container.services.user_service)),
+]
 
 
 @router.delete(
@@ -70,7 +79,7 @@ router = APIRouter(tags=["users"])
 )
 def delete_user(
     user_id: int = Path(..., description="用戶 ID", gt=0),
-    service: UserService = Depends(get_user_service),
+    service: UserServiceDep,
 ) -> None:
     """
     刪除用戶
@@ -114,13 +123,13 @@ def delete_user(
    DELETE /api/users/1
    
 2. FastAPI 路由處理
-   api/users.py::delete_user(user_id=1)
+   api/routers/users.py::delete_user(user_id=1)
    
 3. 路徑參數驗證
    user_id = 1 (必須 > 0)
    
 4. 依賴注入
-   get_user_service() → UserService 實例
+   UserServiceDep → UserService 實例
    
 5. Service 層處理
    UserService.delete_user(user_id=1)

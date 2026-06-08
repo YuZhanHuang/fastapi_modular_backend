@@ -23,7 +23,7 @@ API 層作為 Interface Adapters，負責：
 
 ```
 api/
-  ├── *.py             # 路由檔案（依賴下層）
+  ├── routers/         # 路由模組（依賴下層，啟動時自動註冊）
   ├── schemas/         # Schema 定義（純資料結構）
   ├── utils/           # 工具層（依賴 schemas 和 domain）
   └── deps.py          # 依賴注入
@@ -42,7 +42,10 @@ api/
 api/
 ├── deps.py                    # FastAPI 依賴注入函數
 ├── http_app.py                # FastAPI 應用配置
-├── carts.py                   # Cart 路由處理
+├── router_discovery.py        # 自動掃描並註冊 routers/ 下的 APIRouter
+├── routers/                   # 路由模組（每個資源一個檔案）
+│   ├── __init__.py
+│   └── carts.py               # Cart 路由處理（匯出 router = APIRouter(...)）
 ├── schemas/                   # API Schema 定義
 │   ├── __init__.py
 │   └── cart.py                # Cart 相關 Schema
@@ -171,7 +174,11 @@ def cart_out_from_domain(cart: Cart) -> CartOut:
 ### 範例
 
 ```python
-# api/carts.py
+# api/routers/carts.py
+from fastapi import APIRouter
+
+router = APIRouter(tags=["cart"])
+
 from app.api.schemas.cart import CartOut, AddItemIn
 from app.api.utils.converters.cart import cart_out_from_domain
 
@@ -193,7 +200,7 @@ def get_cart(
 ```
 HTTP 請求
   ↓
-路由函數 (api/carts.py)
+路由函數 (api/routers/carts.py)
   ↓
 Pydantic Schema 驗證 (api/schemas/cart.py)
   ↓
@@ -261,8 +268,14 @@ def order_out_from_domain(order: Order) -> OrderOut:
 
 ### 3. 定義路由
 
+在 `api/routers/` 建立 router 模組並匯出 `router`，啟動時會由 `router_discovery` 自動註冊，無需修改 `http_app.py`。
+
 ```python
-# api/orders.py
+# api/routers/orders.py
+from fastapi import APIRouter
+
+router = APIRouter(tags=["order"])
+
 from app.api.schemas.order import OrderOut
 from app.api.utils.converters.order import order_out_from_domain
 

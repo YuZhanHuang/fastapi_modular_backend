@@ -86,20 +86,28 @@ def list_users(self) -> List[User]:
 
 ### 步驟 2：實作 API 路由
 
-**檔案：`api/users.py`**
+**檔案：`api/routers/users.py`**
 
 在現有檔案中追加以下路由：
 
 ```python
-from typing import List
+from typing import Annotated, List
+
 from fastapi import APIRouter, Depends, HTTPException, status, Path
 
-from app.api.deps import get_user_service
+from app.api.deps import inject_service
 from app.api.schemas.user import UserOut
 from app.api.utils.converters.user import user_out_from_domain
 from app.core.services.user_service import UserService
+from app.infra.containers import get_container
 
-router = APIRouter(tags=["users"])
+router = APIRouter(tags=["user"])
+container = get_container()
+
+UserServiceDep = Annotated[
+    UserService,
+    Depends(inject_service(container.services.user_service)),
+]
 
 
 @router.get(
@@ -110,7 +118,7 @@ router = APIRouter(tags=["users"])
 )
 def get_user(
     user_id: int = Path(..., description="用戶 ID", gt=0),
-    service: UserService = Depends(get_user_service),
+    service: UserServiceDep,
 ) -> UserOut:
     """
     根據 ID 獲取用戶
@@ -137,7 +145,7 @@ def get_user(
     description="獲取所有用戶列表"
 )
 def list_users(
-    service: UserService = Depends(get_user_service),
+    service: UserServiceDep,
 ) -> List[UserOut]:
     """
     獲取所有用戶
@@ -166,13 +174,13 @@ def list_users(
    GET /api/users/1
    
 2. FastAPI 路由處理
-   api/users.py::get_user(user_id=1)
+   api/routers/users.py::get_user(user_id=1)
    
 3. 路徑參數驗證
    user_id = 1 (必須 > 0)
    
 4. 依賴注入
-   get_user_service() → UserService 實例
+   UserServiceDep → UserService 實例
    
 5. Service 層處理
    UserService.get_user(user_id=1)
@@ -208,10 +216,10 @@ def list_users(
    GET /api/users
    
 2. FastAPI 路由處理
-   api/users.py::list_users()
+   api/routers/users.py::list_users()
    
 3. 依賴注入
-   get_user_service() → UserService 實例
+   UserServiceDep → UserService 實例
    
 4. Service 層處理
    UserService.list_users()
@@ -346,7 +354,7 @@ print(response.json())  # 列表
 def list_users(
     skip: int = Query(0, ge=0, description="跳過的記錄數"),
     limit: int = Query(100, ge=1, le=1000, description="返回的記錄數"),
-    service: UserService = Depends(get_user_service),
+    service: UserServiceDep,
 ) -> List[UserOut]:
     """獲取用戶列表（支援分頁）"""
     users = service.list_users(skip=skip, limit=limit)
@@ -364,7 +372,7 @@ def list_users(
 )
 def search_users(
     q: str = Query(..., min_length=1, description="搜尋關鍵字"),
-    service: UserService = Depends(get_user_service),
+    service: UserServiceDep,
 ) -> List[UserOut]:
     """搜尋用戶"""
     users = service.search_users(query=q)

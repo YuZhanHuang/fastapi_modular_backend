@@ -105,19 +105,28 @@ class UserUpdateIn(BaseModel):
 
 ### 步驟 3：實作 API 路由
 
-**檔案：`api/users.py`**
+**檔案：`api/routers/users.py`**
 
 在現有檔案中追加以下路由：
 
 ```python
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status, Path
 
-from app.api.deps import get_user_service
+from app.api.deps import inject_service
 from app.api.schemas.user import UserOut, UserUpdateIn
 from app.api.utils.converters.user import user_out_from_domain
 from app.core.services.user_service import UserService
+from app.infra.containers import get_container
 
-router = APIRouter(tags=["users"])
+router = APIRouter(tags=["user"])
+container = get_container()
+
+UserServiceDep = Annotated[
+    UserService,
+    Depends(inject_service(container.services.user_service)),
+]
 
 
 @router.put(
@@ -129,7 +138,7 @@ router = APIRouter(tags=["users"])
 def update_user(
     user_id: int = Path(..., description="用戶 ID", gt=0),
     body: UserUpdateIn = ...,
-    service: UserService = Depends(get_user_service),
+    service: UserServiceDep,
 ) -> UserOut:
     """
     更新用戶
@@ -189,7 +198,7 @@ def update_user(
    }
    
 2. FastAPI 路由處理
-   api/users.py::update_user(user_id=1, body=UserUpdateIn(...))
+   api/routers/users.py::update_user(user_id=1, body=UserUpdateIn(...))
    
 3. 路徑參數驗證
    user_id = 1 (必須 > 0)
@@ -198,7 +207,7 @@ def update_user(
    UserUpdateIn(email="newemail@example.com", name="Jane Doe")
    
 5. 依賴注入
-   get_user_service() → UserService 實例
+   UserServiceDep → UserService 實例
    
 6. Service 層處理
    UserService.update_user(user_id=1, email="...", name="...")

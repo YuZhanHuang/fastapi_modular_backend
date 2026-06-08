@@ -14,8 +14,8 @@ def context() -> ScenarioContext:
 
 @pytest.fixture
 def container():
-    """Use the same container instance bound by api/carts.py for override to work."""
-    from app.api import carts
+    """Use the same container instance bound by api/routers/carts.py for override to work."""
+    from app.api.routers import carts
 
     yield carts.container
 
