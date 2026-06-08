@@ -19,10 +19,11 @@ if [[ -n "${REDIS_HOST:-}" && -n "${REDIS_PORT:-}" ]]; then
   done
 fi
 
-# DB migration
+# DB migration (only one service should run this; others wait below)
 if [[ "${RUN_MIGRATIONS:-1}" == "1" ]]; then
-  echo "[entrypoint] Running alembic migrations..."
-  uv run alembic upgrade head
+  uv run python scripts/run_migrations.py
+elif [[ "${WAIT_FOR_MIGRATIONS:-1}" == "1" ]]; then
+  uv run python scripts/wait_for_migrations.py
 fi
 
 # 根據角色啟動對應服務
@@ -38,7 +39,7 @@ case "${SERVICE_ROLE:-api}" in
   beat)
     echo "[entrypoint] Starting Celery beat (DB scheduler)..."
     exec uv run celery -A app.worker.celery_app.celery beat \
-      -S celery_sqlalchemy_scheduler.schedulers:DatabaseScheduler \
+      -S app.worker.scheduler:AppDatabaseScheduler \
       -l info
     ;;
   flower)

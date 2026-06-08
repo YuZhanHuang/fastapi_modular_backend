@@ -45,6 +45,8 @@ services:
       dockerfile: docker/app/Dockerfile
     environment:
       SERVICE_ROLE: worker
+      RUN_MIGRATIONS: "0"
+      WAIT_FOR_MIGRATIONS: "1"
       DB_HOST: db
       DB_PORT: 5432
       DATABASE_URL: postgresql+psycopg://app:app@db:5432/app
@@ -62,6 +64,8 @@ services:
       dockerfile: docker/app/Dockerfile
     environment:
       SERVICE_ROLE: beat
+      RUN_MIGRATIONS: "0"
+      WAIT_FOR_MIGRATIONS: "1"
       DB_HOST: db
       DB_PORT: 5432
       DATABASE_URL: postgresql+psycopg://app:app@db:5432/app
@@ -79,6 +83,8 @@ services:
       dockerfile: docker/app/Dockerfile
     environment:
       SERVICE_ROLE: flower
+      RUN_MIGRATIONS: "0"
+      WAIT_FOR_MIGRATIONS: "1"
       DB_HOST: db
       DB_PORT: 5432
       DATABASE_URL: postgresql+psycopg://app:app@db:5432/app

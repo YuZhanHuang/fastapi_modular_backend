@@ -14,6 +14,7 @@ dependencies = [
      "redis>=5.0.0",                 # cache & Celery broker backend (選用)
      "celery>=5.3",
      "celery-sqlalchemy-scheduler",  # DB-based beat scheduler
+     "flower>=2.0",
  ]
 
  [project.optional-dependencies]

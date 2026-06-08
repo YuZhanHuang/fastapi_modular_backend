@@ -22,8 +22,9 @@ COPY pyproject.toml uv.lock ./
 # Install project dependencies (runtime only)
 RUN uv sync --frozen --no-dev
 
-# Copy app source & alembic config
+# Copy app source, migration scripts & alembic config
 COPY src ./src
+COPY scripts ./scripts
 COPY alembic.ini ./
 
 # Copy shared entrypoint with execute permission
