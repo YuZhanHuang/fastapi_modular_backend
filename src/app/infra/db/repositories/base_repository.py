@@ -155,6 +155,40 @@ class SqlAlchemyRepositoryBase:
         """
         return self.session.query(self.__model__).filter_by(**kwargs)
 
+    def find_paginated(
+        self,
+        offset: int = 0,
+        limit: int = 10,
+        order_by: str = "created_at",
+        sort_type: str = "desc",
+        **kwargs,
+    ) -> tuple[list[Base], int]:
+        """
+        分頁查詢符合條件的記錄。
+
+        先執行 COUNT 取得 total，再以 OFFSET / LIMIT 取得當頁資料。
+        預設依 created_at DESC 排序（越新越前）；若 Model 無 created_at，
+        呼叫端須明確傳入 order_by（例如 id）。
+
+        :param offset: 跳過的記錄數（對齊 SQL OFFSET）
+        :param limit: 每頁筆數（對齊 SQL LIMIT）
+        :param order_by: 排序欄位
+        :param sort_type: 排序方式（'asc' 或 'desc'）
+        :param kwargs: filter_by 查詢條件
+        :return: (當頁模型列表, 符合條件的總筆數)
+        """
+        query = self.session.query(self.__model__).filter_by(**kwargs)
+        total = query.count()
+
+        order_attr = getattr(self.__model__, order_by)
+        if sort_type.lower() == "desc":
+            query = query.order_by(order_attr.desc())
+        else:
+            query = query.order_by(order_attr.asc())
+
+        items = query.offset(offset).limit(limit).all()
+        return items, total
+
     def first(self, **kwargs) -> Optional[Base]:
         """
         返回符合條件的第一條記錄

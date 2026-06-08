@@ -208,6 +208,22 @@ def get_cart(
 
 ---
 
+## 分頁資料流
+
+列表 endpoint 採用 **API `page/page_size` → Core `offset/limit` → Infra SQL `OFFSET/LIMIT`** 的分層轉換：
+
+```
+Client (page, page_size)
+  → Router: PageParams.from_page(page, page_size)
+  → Service: list_*(params) → PageResult[Domain]
+  → Router: paginated_response(items, total, page, page_size)
+  → Client: ApiResponse[PaginatedData[Schema]]
+```
+
+Core 的 `PageResult` 僅含 `items` 與 `total`；`page`、`page_size`、`total_pages` 等展示元資料由 API 層的 `paginated_response()` 組裝，避免 Core 依賴 API Schema。詳見 [API 統一回應格式說明](API%20統一回應格式說明.md)。
+
+---
+
 ## 完整流程範例
 
 ### 請求流程

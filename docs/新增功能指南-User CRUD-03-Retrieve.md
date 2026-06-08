@@ -337,22 +337,40 @@ print(response.json())  # 列表
 
 ### 分頁支援
 
-如果需要分頁功能，可以擴展：
+列表 endpoint 建議使用統一 `ApiResponse[PaginatedData[UserOut]]` 格式。
+API 層接收 `page` / `page_size`，透過 `PageParams.from_page()` 轉為 Core 的 `offset` / `limit`：
 
 ```python
+from fastapi import Query
+
+from app.api.schemas.response import ApiResponse, PaginatedData
+from app.api.utils.response import paginated_response
+from app.core.types.pagination import PageParams
+
 @router.get(
     "/users",
-    response_model=List[UserOut],
+    response_model=ApiResponse[PaginatedData[UserOut]],
 )
 def list_users(
-    skip: int = Query(0, ge=0, description="跳過的記錄數"),
-    limit: int = Query(100, ge=1, le=1000, description="返回的記錄數"),
+    page: int = Query(1, ge=1, description="頁碼（從 1 開始）"),
+    page_size: int = Query(10, ge=1, le=100, description="每頁筆數"),
     service: UserServiceDep,
-) -> List[UserOut]:
-    """獲取用戶列表（支援分頁）"""
-    users = service.list_users(skip=skip, limit=limit)
-    return [user_out_from_domain(user) for user in users]
+):
+    """獲取用戶列表（分頁）"""
+    result = service.list_users(PageParams.from_page(page, page_size))
+    return paginated_response(
+        items=[user_out_from_domain(u) for u in result.items],
+        total=result.total,
+        page=page,
+        page_size=page_size,
+        message="查詢成功",
+    )
 ```
+
+**分層說明：**
+- **API**：`page` / `page_size` → `paginated_response()` 組裝 `PaginatedData`
+- **Core**：`PageParams`（`offset` / `limit`）→ `PageResult`（`items` + `total`）
+- **Infra**：`SqlAlchemyRepositoryBase.find_paginated()` 執行 SQL `OFFSET` / `LIMIT` + `COUNT`
 
 ### 搜尋功能
 

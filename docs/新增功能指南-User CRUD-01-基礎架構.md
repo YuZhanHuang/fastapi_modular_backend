@@ -88,6 +88,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, List
 
 from app.core.domain.user import User
+from app.core.types.pagination import PageParams, PageResult
 
 
 class UserRepository(ABC):
@@ -110,7 +111,12 @@ class UserRepository(ABC):
     
     @abstractmethod
     def get_all(self) -> List[User]:
-        """獲取所有用戶"""
+        """獲取所有用戶（小資料量場景；列表 endpoint 建議改用 list_paginated）"""
+        raise NotImplementedError
+    
+    @abstractmethod
+    def list_paginated(self, params: PageParams) -> PageResult[User]:
+        """分頁獲取用戶列表"""
         raise NotImplementedError
     
     @abstractmethod
@@ -179,6 +185,7 @@ from sqlalchemy.orm import Session
 
 from app.core.domain.user import User
 from app.core.repositories.user_repository import UserRepository
+from app.core.types.pagination import PageParams, PageResult
 from app.infra.db.models.user import UserModel
 from app.infra.db.repositories.base_repository import SqlAlchemyRepositoryBase
 
@@ -226,6 +233,19 @@ class UserRepositoryImpl(SqlAlchemyRepositoryBase, UserRepository):
     def get_all(self) -> List[User]:
         """獲取所有用戶"""
         return [self._model_to_domain(model) for model in self.find_all()]
+    
+    def list_paginated(self, params: PageParams) -> PageResult[User]:
+        """分頁獲取用戶列表"""
+        rows, total = self.find_paginated(
+            offset=params.offset,
+            limit=params.limit,
+            order_by="created_at",
+            sort_type="desc",
+        )
+        return PageResult(
+            items=[self._model_to_domain(r) for r in rows],
+            total=total,
+        )
     
     def update(self, user: User) -> User:
         """更新用戶"""
@@ -277,6 +297,7 @@ from typing import Optional, List
 
 from app.core.domain.user import User
 from app.core.repositories.user_repository import UserRepository
+from app.core.types.pagination import PageParams, PageResult
 
 
 class UserService:
@@ -325,13 +346,14 @@ class UserService:
         """
         return self.user_repo.get_by_email(email)
     
-    def list_users(self) -> List[User]:
+    def list_users(self, params: PageParams) -> PageResult[User]:
         """
-        獲取所有用戶
-        
-        :return: User 列表
+        分頁獲取用戶列表
+
+        :param params: 分頁參數（offset / limit）
+        :return: PageResult（items + total）
         """
-        return self.user_repo.get_all()
+        return self.user_repo.list_paginated(params)
     
     def update_user(self, user_id: int, email: Optional[str] = None, name: Optional[str] = None) -> User:
         """

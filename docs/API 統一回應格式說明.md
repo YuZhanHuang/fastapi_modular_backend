@@ -212,21 +212,30 @@ def add_item(body: AddItemIn, service: CartService = ...):
 
 #### 3. 分頁回應
 
+API 層使用 `page` / `page_size`（對前端友善）；Core / Infra 使用 `offset` / `limit`（對齊 SQL）。
+轉換在 Router 透過 `PageParams.from_page()` 完成，Service 回傳 `PageResult`（`items` + `total`），
+再由 `paginated_response()` 組裝 `PaginatedData`（含 `page`、`total_pages` 等展示元資料）。
+
 ```python
+from fastapi import Query
+
 from app.api.utils.response import paginated_response
+from app.core.types.pagination import PageParams
 
 @router.get("/users", response_model=ApiResponse[PaginatedData[UserOut]])
-def list_users(page: int = 1, page_size: int = 10):
-    """獲取用戶列表"""
-    users = service.list_users(page=page, page_size=page_size)
-    total = service.count_users()
-    
+def list_users(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    service: UserServiceDep,
+):
+    """獲取用戶列表（分頁）"""
+    result = service.list_users(PageParams.from_page(page, page_size))
     return paginated_response(
-        items=users,
-        total=total,
+        items=[user_out_from_domain(u) for u in result.items],
+        total=result.total,
         page=page,
         page_size=page_size,
-        message="查詢成功"
+        message="查詢成功",
     )
 ```
 
