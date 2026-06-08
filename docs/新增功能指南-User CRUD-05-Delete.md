@@ -56,7 +56,7 @@ def delete_user(self, user_id: int) -> None:
 ```python
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status, Path
+from fastapi import APIRouter, Depends, status, Path
 
 from app.api.deps import inject_service
 from app.core.services.user_service import UserService
@@ -89,22 +89,8 @@ def delete_user(
     成功刪除後返回 204 No Content。
     如果用戶不存在則返回 404。
     """
-    try:
-        service.delete_user(user_id)
-        # 返回 None，FastAPI 會自動處理為 204 No Content
-        return None
-        
-    except ValueError as e:
-        # 處理業務邏輯錯誤（用戶不存在）
-        if "not found" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(e)
-            )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+    service.delete_user(user_id)  # 不存在時 Service 拋出 UserNotFoundError
+    return None
 ```
 
 **說明：**

@@ -230,26 +230,18 @@ def list_users(page: int = 1, page_size: int = 10):
     )
 ```
 
-#### 4. 手動錯誤處理
+#### 4. 業務錯誤處理（DomainError）
+
+Router 不手動組裝 HTTP 錯誤回應，改由 Service / Domain 層拋出 `DomainError`，全局 handler 自動轉換：
 
 ```python
-from fastapi import HTTPException, status
-from app.api.utils.response import not_found_response
+from app.api.utils.response import success_response
+from app.core.exceptions.cart import CartNotFoundError
 
 @router.get("/cart", response_model=ApiResponse[CartOut])
 def get_cart(user_id: str, service: CartService = ...):
     """獲取購物車"""
-    cart = service.get_cart(user_id)
-    
-    if not cart:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=not_found_response(
-                resource_type="購物車",
-                resource_id=user_id
-            ).model_dump()
-        )
-    
+    cart = service.get_cart(user_id)  # 不存在時 Service 拋出 CartNotFoundError
     cart_data = cart_out_from_domain(cart)
     return success_response(data=cart_data, message="獲取購物車成功")
 ```
@@ -259,6 +251,8 @@ def get_cart(user_id: str, service: CartService = ...):
 ## 全局異常處理
 
 本專案已配置全局異常處理器，自動捕獲並轉換異常為統一格式。
+
+> 錯誤分層（Core / API / 內建 handler）、如何定義 `DomainError`、如何新增 `EXCEPTION_MAPPINGS`，請參考 [錯誤處理架構說明](錯誤處理架構說明.md)。
 
 ### 支援的異常類型
 
@@ -284,20 +278,45 @@ def get_cart(user_id: str, service: CartService = ...):
 }
 ```
 
-#### 2. ValueError（400）
+#### 2. DomainError（業務錯誤）
 
-**觸發時機：** 業務邏輯驗證失敗
+**觸發時機：** Domain / Service / Infra 層拋出 `DomainError` 子類（如 `InvalidQuantityError`、`CartNotFoundError`）
 
-**回應範例：**
+**處理流程：**
+
+1. 在 `core/exceptions/{resource}.py` 定義 `DomainError` 子類
+2. 在 `api/exceptions/{resource}.py` 定義 `EXCEPTION_MAPPINGS`（錯誤類型 → HTTP status）
+3. 啟動時 `exception_handlers` 自動掃描、驗證映射完整性並註冊統一 handler（轉換邏輯在 `utils/response.py`）
+4. 缺映射時啟動失敗（`RuntimeError`），避免漏設 status code
+
+**回應範例（400）：**
 
 ```json
 {
   "success": false,
   "code": 400,
-  "message": "請求參數錯誤",
+  "message": "quantity must be positive",
   "errors": [
     {
-      "message": "quantity must be positive"
+      "message": "quantity must be positive",
+      "code": "INVALID_QUANTITY"
+    }
+  ],
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
+
+**回應範例（404）：**
+
+```json
+{
+  "success": false,
+  "code": 404,
+  "message": "購物車 (user_id: u1) 不存在",
+  "errors": [
+    {
+      "message": "購物車 (user_id: u1) 不存在",
+      "code": "CART_NOT_FOUND"
     }
   ],
   "timestamp": "2024-01-01T12:00:00Z"
@@ -515,10 +534,10 @@ return success_response(
 
 ```python
 # ✅ 好的錯誤訊息
-raise ValueError(f"商品 {product_id} 庫存不足")
+raise InsufficientStockError(product_id=product_id)
 
 # ❌ 不好的錯誤訊息
-raise ValueError("error")
+raise InvalidQuantityError(message="error")
 ```
 
 ### 3. 使用正確的狀態碼
@@ -537,26 +556,26 @@ return success_response(data=user, message="用戶創建成功")
 # ✅ 詳細的錯誤信息（自動由全局處理器處理）
 # Pydantic 會自動提供 field 和 message
 
-# ❌ 不要手動拋出沒有結構的錯誤
-raise HTTPException(status_code=400, detail="invalid input")
+# ❌ 不要在 Router 手動拋出 HTTPException
+# 改在 Service 層 raise DomainError 子類
 ```
 
 ### 5. 在 Service 層拋出有意義的異常
 
 ```python
 # core/services/cart_service.py
+from app.core.exceptions.cart import InvalidQuantityError, ProductNotFoundError
 
 class CartService:
     def add_item(self, user_id: str, product_id: str, quantity: int, ...):
         """加入購物車項目"""
-        
-        # ✅ 拋出有意義的業務異常
+
         if quantity <= 0:
-            raise ValueError("商品數量必須大於 0")
-        
+            raise InvalidQuantityError()
+
         if not self.product_exists(product_id):
-            raise ValueError(f"商品 {product_id} 不存在")
-        
+            raise ProductNotFoundError(product_id)
+
         # 業務邏輯...
 ```
 

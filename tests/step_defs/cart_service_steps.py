@@ -1,5 +1,7 @@
 from pytest_bdd import given, parsers, scenarios, then, when
 
+from app.core.exceptions.base import DomainError
+from app.core.exceptions.cart import InvalidQuantityError
 from app.core.services.cart_service import CartService
 from tests.support.context import ScenarioContext
 from tests.support.fakes.fake_cart_repository import FakeCartRepository
@@ -51,7 +53,7 @@ def add_item_expecting_error(
             unit_price=unit_price,
             quantity=quantity,
         )
-    except ValueError as exc:
+    except DomainError as exc:
         context.exception = exc
 
 
@@ -70,6 +72,6 @@ def assert_item_count(context: ScenarioContext, count: int) -> None:
     assert len(context.result.items) == count
 
 
-@then("應拋出 ValueError")
-def assert_value_error(context: ScenarioContext) -> None:
-    assert isinstance(context.exception, ValueError)
+@then("應拋出 InvalidQuantityError")
+def assert_invalid_quantity_error(context: ScenarioContext) -> None:
+    assert isinstance(context.exception, InvalidQuantityError)

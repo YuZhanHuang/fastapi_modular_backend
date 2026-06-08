@@ -127,7 +127,7 @@ User API 路由
 """
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 from app.api.deps import inject_service
 from app.api.schemas.user import UserOut, UserCreateIn
@@ -163,27 +163,11 @@ def create_user(
     
     返回創建的用戶資訊。
     """
-    try:
-        # 呼叫 Service 層創建用戶
-        user = service.create_user(
-            email=body.email,
-            name=body.name,
-        )
-        
-        # 轉換為 API Schema 並返回
-        return user_out_from_domain(user)
-        
-    except ValueError as e:
-        # 處理業務邏輯錯誤（如 Email 已存在）
-        if "already exists" in str(e):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=str(e)
-            )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+    user = service.create_user(
+        email=body.email,
+        name=body.name,
+    )
+    return user_out_from_domain(user)
 ```
 
 **說明：**
@@ -191,7 +175,7 @@ def create_user(
 - 使用 `@router.post` 定義 POST 端點
 - `status_code=201` 表示創建成功
 - 使用 `UserServiceDep` 注入 Service（與 `CartServiceDep` 相同模式）
-- 處理 `ValueError` 並轉換為適當的 HTTP 狀態碼
+- Service 層拋出 `DomainError` 子類（如 `DuplicateEmailError`），由全局 handler 自動轉為 HTTP 回應
 - 使用 Converter 轉換 Domain Model → API Schema
 
 ---

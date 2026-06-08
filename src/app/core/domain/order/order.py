@@ -5,6 +5,13 @@ from typing import List
 from app.core.domain.order.order_item import OrderItem
 from app.core.domain.order.order_status import OrderStatus
 from app.core.domain.order.shipping_address import ShippingAddress
+from app.core.exceptions.order import (
+    DuplicateOrderItemError,
+    EmptyOrderError,
+    InvalidOrderQuantityError,
+    InvalidOrderStateError,
+    MissingShippingAddressError,
+)
 
 
 @dataclass
@@ -19,15 +26,14 @@ class Order:
     def add_item(self, item_id: str, product_id: str, quantity: int, unit_price: int) -> None:
         """添加項目到訂單"""
         if quantity <= 0:
-            raise ValueError("quantity must be positive")
-        
+            raise InvalidOrderQuantityError()
+
         if self.status != OrderStatus.PENDING:
-            raise ValueError("只能修改待處理的訂單")
-        
-        # 檢查是否已存在相同項目
+            raise InvalidOrderStateError("只能修改待處理的訂單")
+
         for item in self.items:
             if item.item_id == item_id:
-                raise ValueError(f"項目 {item_id} 已存在")
+                raise DuplicateOrderItemError(item_id)
         
         self.items.append(
             OrderItem(
@@ -41,20 +47,20 @@ class Order:
     def confirm(self) -> None:
         """確認訂單"""
         if self.status != OrderStatus.PENDING:
-            raise ValueError("只能確認待處理的訂單")
-        
+            raise InvalidOrderStateError("只能確認待處理的訂單")
+
         if not self.items:
-            raise ValueError("訂單必須包含至少一個項目")
-        
+            raise EmptyOrderError()
+
         if not self.shipping_address:
-            raise ValueError("訂單必須有配送地址")
+            raise MissingShippingAddressError()
         
         self.status = OrderStatus.CONFIRMED
 
     def cancel(self) -> None:
         """取消訂單"""
         if self.status in (OrderStatus.DELIVERED, OrderStatus.CANCELLED):
-            raise ValueError("已送達或已取消的訂單無法取消")
+            raise InvalidOrderStateError("已送達或已取消的訂單無法取消")
         
         self.status = OrderStatus.CANCELLED
 

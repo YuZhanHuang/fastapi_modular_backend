@@ -3,15 +3,17 @@ API 回應包裝工具
 
 提供便捷的函數來創建標準化的 API 回應。
 """
-from typing import TypeVar, Optional
+import os
 from math import ceil
+from typing import Any, Optional, TypeVar
 
 from app.api.schemas.response import (
     ApiResponse,
-    ErrorResponse,
     ErrorDetail,
+    ErrorResponse,
     PaginatedData,
 )
+from app.core.exceptions.base import DomainError
 
 
 T = TypeVar('T')
@@ -267,4 +269,65 @@ def internal_error_response(
         errors = [ErrorDetail(message=detail)]
     
     return error_response(message=message, code=500, errors=errors)
+
+
+def error_response_to_json(body: ErrorResponse) -> dict:
+    """Serialize ErrorResponse to a JSON-serializable dict."""
+    return body.model_dump(mode="json")
+
+
+def pydantic_errors_to_details(
+    exc: Any,
+    *,
+    skip_request_prefix: bool,
+) -> list[ErrorDetail]:
+    """Convert Pydantic validation errors into ErrorDetail list."""
+    errors = []
+    for error in exc.errors():
+        loc = error["loc"][1:] if skip_request_prefix else error["loc"]
+        field = ".".join(str(part) for part in loc)
+        errors.append(
+            ErrorDetail(
+                field=field or None,
+                message=error["msg"],
+                code=error["type"],
+            )
+        )
+    return errors
+
+
+def validation_error_from_pydantic(
+    exc: Any,
+    message: str,
+    *,
+    skip_request_prefix: bool,
+) -> ErrorResponse:
+    """Build a 422 ErrorResponse from a Pydantic validation exception."""
+    errors = pydantic_errors_to_details(exc, skip_request_prefix=skip_request_prefix)
+    return validation_error_response(message=message, errors=errors)
+
+
+def unhandled_exception_to_response(exc: Exception) -> ErrorResponse:
+    """Build a 500 ErrorResponse for an unhandled exception."""
+    is_debug = os.getenv("DEBUG", "false").lower() == "true"
+    detail = str(exc) if is_debug else None
+    return internal_error_response(message="伺服器內部錯誤", detail=detail)
+
+
+def domain_error_to_response(exc: DomainError, status_code: int) -> ErrorResponse:
+    """Convert a DomainError into the standard ErrorResponse schema."""
+    if exc.errors:
+        details = [
+            ErrorDetail(message=detail.message, field=detail.field, code=detail.code)
+            for detail in exc.errors
+        ]
+    else:
+        details = [ErrorDetail(message=exc.message, code=exc.error_code)]
+
+    return ErrorResponse(
+        success=False,
+        code=status_code,
+        message=exc.message,
+        errors=details,
+    )
 

@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Type
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
+from app.core.exceptions.common import EntityNotFoundError, InvalidEntityTypeError
 from app.infra.db.base import Base
 
 
@@ -34,7 +35,7 @@ class SqlAlchemyRepositoryBase:
         """
         rv = isinstance(model, self.__model__)
         if not rv and raise_error:
-            raise ValueError(f"{model} is not of type {self.__model__}")
+            raise InvalidEntityTypeError(model, self.__model__)
         return rv
 
     def save(self, model: Base) -> Base:
@@ -92,7 +93,7 @@ class SqlAlchemyRepositoryBase:
         """
         instance = self.get(_id)
         if instance is None:
-            raise ValueError(f"{self.__model__.__name__} with id {_id} not found")
+            raise EntityNotFoundError(self.__model__.__name__, entity_id=_id)
         return instance
 
     def exists(self, **kwargs) -> bool:
@@ -173,8 +174,9 @@ class SqlAlchemyRepositoryBase:
         """
         obj = self.first(**kwargs)
         if not obj:
-            raise ValueError(
-                f"{self.__model__.__name__} not found with conditions: {kwargs}"
+            raise EntityNotFoundError(
+                self.__model__.__name__,
+                conditions=kwargs,
             )
         return obj
 

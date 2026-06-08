@@ -1,12 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 from app.api.deps import inject_service
 from app.api.schemas.cart import CartOut, AddItemIn
 from app.api.schemas.response import ApiResponse
 from app.api.utils.converters.cart import cart_out_from_domain
-from app.api.utils.response import success_response, created_response, not_found_response
+from app.api.utils.response import success_response, created_response
 from app.core.services.cart_service import CartService
 from app.infra.containers import get_container
 
@@ -31,28 +31,15 @@ def get_cart(
 ) -> ApiResponse[CartOut]:
     """
     獲取購物車
-    
+
     Args:
         user_id: 用戶 ID
         service: 購物車服務（自動注入）
-    
+
     Returns:
         包含購物車信息的標準化回應
-    
-    Raises:
-        HTTPException: 當購物車不存在時返回 404
     """
     cart = service.get_cart(user_id)
-    
-    if not cart:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=not_found_response(
-                resource_type="購物車",
-                resource_id=user_id
-            ).model_dump(mode="json")
-        )
-    
     cart_data = cart_out_from_domain(cart)
     return success_response(
         data=cart_data,
@@ -74,34 +61,24 @@ def add_item(
 ) -> ApiResponse[CartOut]:
     """
     加入購物車項目
-    
+
     Args:
         user_id: 用戶 ID
         body: 商品信息
         service: 購物車服務（自動注入）
-    
+
     Returns:
         包含更新後購物車信息的標準化回應
-    
-    Raises:
-        HTTPException: 當輸入驗證失敗或業務規則違反時返回 400
     """
-    try:
-        cart = service.add_item(
-            user_id=user_id,
-            product_id=body.product_id,
-            unit_price=body.unit_price,
-            quantity=body.quantity,
-        )
-        
-        cart_data = cart_out_from_domain(cart)
-        return created_response(
-            data=cart_data,
-            message="商品已成功加入購物車"
-        )
-        
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+    cart = service.add_item(
+        user_id=user_id,
+        product_id=body.product_id,
+        unit_price=body.unit_price,
+        quantity=body.quantity,
+    )
+
+    cart_data = cart_out_from_domain(cart)
+    return created_response(
+        data=cart_data,
+        message="商品已成功加入購物車"
+    )

@@ -12,4 +12,4 @@ Feature: 加入購物車項目
 
   Scenario: 數量無效
     When 使用者 "user123" 嘗試加入商品 "prod456" 數量 0 單價 1000
-    Then 應拋出 ValueError
+    Then 應拋出 InvalidQuantityError

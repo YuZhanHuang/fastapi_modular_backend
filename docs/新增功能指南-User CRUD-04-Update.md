@@ -112,7 +112,7 @@ class UserUpdateIn(BaseModel):
 ```python
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status, Path
+from fastapi import APIRouter, Depends, Path
 
 from app.api.deps import inject_service
 from app.api.schemas.user import UserOut, UserUpdateIn
@@ -150,33 +150,12 @@ def update_user(
     支援部分更新，只更新提供的欄位。
     如果用戶不存在則返回 404。
     """
-    try:
-        # 呼叫 Service 層更新用戶
-        user = service.update_user(
-            user_id=user_id,
-            email=body.email,
-            name=body.name,
-        )
-        
-        # 轉換為 API Schema 並返回
-        return user_out_from_domain(user)
-        
-    except ValueError as e:
-        # 處理業務邏輯錯誤
-        if "not found" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(e)
-            )
-        elif "already exists" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=str(e)
-            )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+    user = service.update_user(
+        user_id=user_id,
+        email=body.email,
+        name=body.name,
+    )
+    return user_out_from_domain(user)
 ```
 
 **說明：**

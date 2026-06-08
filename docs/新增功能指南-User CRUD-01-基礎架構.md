@@ -529,6 +529,7 @@ alembic upgrade head
 - [ ] Converter 已建立（`api/utils/converters/user.py`）
 - [ ] 依賴注入已添加（`api/deps.py`）
 - [ ] Router 模組已建立於 `api/routers/` 且匯出 `router`
+- [ ] 業務錯誤已定義於 `core/exceptions/`，HTTP 映射已添加至 `api/exceptions/`（見 [錯誤處理架構說明](錯誤處理架構說明.md)）
 - [ ] 資料庫遷移已建立並執行
 
 ---

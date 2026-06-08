@@ -1,6 +1,7 @@
 from dependency_injector import providers
 from pytest_bdd import given, parsers, scenarios, then, when
 
+from app.core.exceptions.cart import CartNotFoundError
 from tests.support.context import ScenarioContext
 
 scenarios("../features/api/cart_api.feature")
@@ -23,7 +24,7 @@ def api_ready(context: ScenarioContext, client, container) -> None:
 def stub_empty_cart(context: ScenarioContext, container) -> None:
     class StubCartService:
         def get_cart(self, user_id: str):
-            return None
+            raise CartNotFoundError(user_id)
 
     override = container.services.cart_service.override(
         providers.Object(StubCartService())

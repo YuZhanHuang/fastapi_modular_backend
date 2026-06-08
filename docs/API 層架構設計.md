@@ -4,6 +4,8 @@
 
 本文檔說明 API 層的架構設計原則與組織方式，包括 Schema 定義、轉換邏輯、路由處理等組件的職責與組織規範。
 
+錯誤的分層、定義方式與 handler 註冊流程，請參考 [錯誤處理架構說明](錯誤處理架構說明.md)。
+
 ---
 
 ## 架構原則
@@ -43,6 +45,12 @@ api/
 ├── deps.py                    # FastAPI 依賴注入函數
 ├── http_app.py                # FastAPI 應用配置
 ├── router_discovery.py        # 自動掃描並註冊 routers/ 下的 APIRouter
+├── exception_handlers.py        # 掃描 api/exceptions/ 並註冊全部 exception handler
+├── exceptions/                # DomainError → HTTP status 映射（每資源一檔）
+│   ├── __init__.py
+│   ├── cart.py                # EXCEPTION_MAPPINGS: CartNotFoundError → 404, ...
+│   ├── order.py
+│   └── common.py
 ├── routers/                   # 路由模組（每個資源一個檔案）
 │   ├── __init__.py
 │   └── carts.py               # Cart 路由處理（匯出 router = APIRouter(...)）
@@ -53,11 +61,18 @@ api/
 │       ├── CartOut
 │       └── AddItemIn
 └── utils/                     # API 層工具
+    ├── response.py            # ErrorResponse 組裝與 Exception 轉換 helper
     └── converters/            # Domain → Schema 轉換器
         ├── __init__.py
         └── cart.py           # Cart 轉換邏輯
             ├── cart_item_out_from_domain()
             └── cart_out_from_domain()
+
+core/exceptions/               # 業務錯誤定義（不含 HTTP）
+├── base.py                    # DomainError、DomainErrorDetail
+├── cart.py                    # CartNotFoundError、InvalidQuantityError
+├── order.py
+└── common.py                  # EntityNotFoundError、InvalidEntityTypeError
 ```
 
 ---

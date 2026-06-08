@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import List
 
+from app.core.exceptions.cart import InvalidQuantityError
+
 
 @dataclass(frozen=True)
 class CartItem:
@@ -19,7 +21,7 @@ class Cart:
     def add_item(self, product_id: str, unit_price: int, quantity: int = 1) -> None:
         """添加商品到購物車"""
         if quantity <= 0:
-            raise ValueError("quantity must be positive")
+            raise InvalidQuantityError()
 
         # 查找現有項目並更新數量
         updated_items = []

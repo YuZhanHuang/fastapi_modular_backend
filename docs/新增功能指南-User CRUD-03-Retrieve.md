@@ -93,7 +93,7 @@ def list_users(self) -> List[User]:
 ```python
 from typing import Annotated, List
 
-from fastapi import APIRouter, Depends, HTTPException, status, Path
+from fastapi import APIRouter, Depends, Path
 
 from app.api.deps import inject_service
 from app.api.schemas.user import UserOut
@@ -127,14 +127,7 @@ def get_user(
     
     返回用戶資訊，如果用戶不存在則返回 404。
     """
-    user = service.get_user(user_id)
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with id {user_id} not found"
-        )
-    
+    user = service.get_user(user_id)  # 不存在時 Service 拋出 UserNotFoundError
     return user_out_from_domain(user)
 
 
